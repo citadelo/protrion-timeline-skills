@@ -103,7 +103,7 @@ describe('no skill output carries a credential', () => {
     const result = await createEvent({
       client: client(fetchImpl),
       projectId: PROJECT,
-      event: { name: 'Scoping complete' },
+      event: { name: 'Scoping complete', parents: ['EVT-001'] },
       sleep: () => Promise.resolve(),
     });
 

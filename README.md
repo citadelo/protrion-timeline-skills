@@ -164,6 +164,12 @@ other search dimension and no full text — so it would be an alias pretending t
 event reached the ledger. It polls the event's status and reports `PROCESSED`, `FAILED` with the
 recorded error, or unresolved — never the `202` as success.
 
+What an event follows is an explicit choice. Without a `parents` field the skill writes nothing: it
+returns `needs_parent_decision` with `suggestedParent` (the latest *occurred* event, never a planned
+step, or `null`) and exits with code 2, so the agent asks the user whether to link to the suggestion,
+to another event, or to none, then re-runs with `"parents":["<id>"]` or `"parents":[]`. Explicit
+parents are sent unchanged; an empty list is a deliberate "no parent".
+
 ## Credentials never appear in output
 
 No skill prints a token value, on any path, including error messages and echoed request headers.

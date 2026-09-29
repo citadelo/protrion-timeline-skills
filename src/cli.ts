@@ -86,13 +86,17 @@ async function main(argv: string[]): Promise<void> {
         await getEvent(client, required(args, 'projectId'), required(args, 'entryId')),
       );
     case 'timeline.events.create':
-      return report(
-        await createEvent({
-          client,
-          projectId: required(args, 'projectId'),
-          event: JSON.parse(required(args, 'event')) as Record<string, unknown>,
-        }),
-      );
+    {
+      const result = await createEvent({
+        client,
+        projectId: required(args, 'projectId'),
+        event: JSON.parse(required(args, 'event')) as Record<string, unknown>,
+      });
+      report(result);
+      // Nothing was written: a distinct non-zero code so it cannot be read as a successful write.
+      if (result.outcome === 'needs_parent_decision') process.exitCode = 2;
+      return;
+    }
     default:
       throw new Error(
         `Unknown skill '${skill ?? ''}'. This pack ships: timeline.authenticate, `

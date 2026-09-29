@@ -1,14 +1,18 @@
 import type { EventFilters, IngestStatus, TimelineClient, TimelineEvent } from '../client';
 import { ProjectKeyRequiredError } from '../errors';
 
-export type CreateOutcome = 'processed' | 'failed' | 'unresolved';
+export type CreateOutcome = 'processed' | 'failed' | 'unresolved' | 'needs_parent_decision';
 
 export interface CreateEventResult {
   outcome: CreateOutcome;
   /** The entry id the event was stored under, once it reached the ledger. */
   entryId?: string;
   /** The ingest record, so an unresolved outcome can be re-checked. */
-  ingestId: string;
+  ingestId?: string;
+  /** The parents the event was sent with, as named by the agent. Empty when none. Absent when nothing was written. */
+  parents?: string[];
+  /** For `needs_parent_decision`: the latest occurred event, or null when nothing has occurred yet. */
+  suggestedParent?: string | null;
   error?: string;
   summary: string;
 }
@@ -35,7 +39,17 @@ export async function createEvent(options: CreateEventOptions): Promise<CreateEv
   const pollIntervalMs = options.pollIntervalMs ?? 500;
   const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
 
-  const receipt = await options.client.submitEvent(options.projectId, options.event);
+  const named = options.event.parents;
+  // Only an actual array is a decision; anything else (absent, null, a string) is still undecided.
+  if (!Array.isArray(named)) return decideParent(options);
+
+  const parents = named.map(String);
+  const event = { ...options.event };
+  if (parents.length === 0) delete event.parents;
+  const note = parents.length > 0
+    ? `Parents were the ones given: ${parents.join(', ')}.`
+    : 'No parent was used, as chosen.';
+  const receipt = await options.client.submitEvent(options.projectId, event);
   const deadline = Date.now() + budgetSeconds * 1000;
 
   // The write already happened - the 202 said so. A failure from here on is a failure to *learn*
@@ -52,8 +66,9 @@ export async function createEvent(options: CreateEventOptions): Promise<CreateEv
     return {
       outcome: 'unresolved',
       ingestId: receipt.id,
+      parents,
       error: reasonFor(error),
-      summary: unresolvedSummary(receipt.id, error),
+      summary: `${unresolvedSummary(receipt.id, error)} ${note}`,
     };
   }
 
@@ -62,25 +77,55 @@ export async function createEvent(options: CreateEventOptions): Promise<CreateEv
       outcome: 'processed',
       entryId: last.entryId ?? undefined,
       ingestId: receipt.id,
-      summary: `The event reached the ledger as ${last.entryId ?? 'an entry'}.`,
+      parents,
+      summary: `The event reached the ledger as ${last.entryId ?? 'an entry'}. ${note}`,
     };
   }
   if (last.status === 'FAILED') {
     return {
       outcome: 'failed',
       ingestId: receipt.id,
+      parents,
       error: last.lastError ?? undefined,
       summary:
         'The event was accepted for processing but did not reach the ledger.'
-        + (last.lastError ? ` The recorded error was: ${last.lastError}` : ''),
+        + (last.lastError ? ` The recorded error was: ${last.lastError}` : '')
+        + ` ${note}`,
     };
   }
   return {
     outcome: 'unresolved',
     ingestId: receipt.id,
+    parents,
     summary:
       `The event was accepted but had not resolved within ${budgetSeconds}s. It may still land; `
-      + `re-check ingest record ${receipt.id} rather than assuming either way.`,
+      + `re-check ingest record ${receipt.id} rather than assuming either way. ${note}`,
+  };
+}
+
+/**
+ * The event names no `parents` field, so what it follows has not been decided. Nothing is written:
+ * the skill suggests the project's latest event that has occurred (never a planned step) and leaves
+ * the choice to the user, through the agent.
+ */
+async function decideParent(options: CreateEventOptions): Promise<CreateEventResult> {
+  const events = await options.client.events(options.projectId);
+  let latest: TimelineEvent | undefined;
+  for (const candidate of events) {
+    if (candidate.occurred !== true) continue;
+    if (!latest || Date.parse(candidate.timestamp) > Date.parse(latest.timestamp)) latest = candidate;
+  }
+  const suggestedParent = latest?.entryId ?? null;
+  const rerun =
+    'Then re-run with "parents":["<id>"] in the event to link it, or "parents":[] for no parent.';
+  return {
+    outcome: 'needs_parent_decision',
+    suggestedParent,
+    summary: suggestedParent
+      ? `Nothing was written: it is not decided what this event follows. Ask the user whether to link it to `
+        + `the latest event that has occurred, ${suggestedParent}, to another event, or to none. ${rerun}`
+      : `Nothing was written: it is not decided what this event follows, and no event has occurred yet to `
+        + `suggest. Ask the user whether to link it to a particular event or to none. ${rerun}`,
   };
 }
 
