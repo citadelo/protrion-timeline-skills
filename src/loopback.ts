@@ -14,6 +14,41 @@ function isDeliveryRefusalReason(value: string): value is DeliveryRefusalReason 
   return (REFUSAL_REASONS as readonly string[]).includes(value);
 }
 
+/**
+ * Where the browser is sent once a delivery is accepted: `<app>/agent/done` with `outcome`, and only
+ * where they apply `reason` (a known delivery code) and `project_id`. Nothing else is copied from the
+ * delivery, so no token, key, expiry, name or state can leak into the URL. The outcome comes from
+ * what was delivered, not from which screen was opened.
+ */
+export function doneLocation(
+  appUrl: string,
+  delivered: URLSearchParams,
+  requestedProjectId: string | undefined,
+): string {
+  const done = new URL('agent/done', `${appUrl.replace(/\/+$/, '')}/`);
+  const error = delivered.get('error');
+  if (error === 'access_denied') {
+    done.searchParams.set('outcome', 'declined');
+  } else if (error) {
+    done.searchParams.set('outcome', 'refused');
+    if (isDeliveryRefusalReason(error)) {
+      done.searchParams.set('reason', error);
+    }
+    if (requestedProjectId) {
+      done.searchParams.set('project_id', requestedProjectId);
+    }
+  } else if (delivered.has('ingest_api_key')) {
+    done.searchParams.set('outcome', 'key_confirmed');
+    const projectId = delivered.get('project_id');
+    if (projectId) {
+      done.searchParams.set('project_id', projectId);
+    }
+  } else if (delivered.has('external_tool_token')) {
+    done.searchParams.set('outcome', 'authorized');
+  }
+  return done.toString();
+}
+
 export interface Delivery {
   params: URLSearchParams;
   state: string;
@@ -57,9 +92,16 @@ export async function awaitBrowserDelivery(options: {
         response.writeHead(400).end('Unexpected request.');
         return;
       }
+      // Back into the app, so the user ends on a screen rather than bare text. The request URL holds
+      // the credential; the redirect carries only the outcome, and the headers keep the loopback URL
+      // out of caches and out of any Referer.
       response
-        .writeHead(200, { 'Content-Type': 'text/plain' })
-        .end('Done. You can close this tab and return to your agent.');
+        .writeHead(303, {
+          Location: doneLocation(options.appUrl, params, options.query.projectId),
+          'Cache-Control': 'no-store',
+          'Referrer-Policy': 'no-referrer',
+        })
+        .end();
       clearTimeout(timer);
       server.close();
       resolve(params);

@@ -113,6 +113,10 @@ A first session on a project usually goes:
 3. **Work** - reads and writes on that project use its key until it expires.
 4. **Confirm again** when the key expires - the agent stops and asks; it never renews a key on its own.
 
+Once you approve, decline or the app refuses, the tab lands on the app's `/agent/done` screen, which
+says how it went and that you can return to your agent. The address it is sent to carries only the
+outcome, never a token or key.
+
 Each browser screen waits five minutes for you. Leaving it longer, or closing the tab, ends the
 request with nothing obtained.
 
