@@ -1,0 +1,13 @@
+image: node:22
+
+stages:
+  - verify
+
+# Everything here runs offline. The pack's credentials come from a human approving them in a browser,
+# so there is nothing for CI to authenticate as — and nothing it could hold that would be safe to.
+verify:
+  stage: verify
+  script:
+    - npm ci
+    - npm run typecheck
+    - npm test
