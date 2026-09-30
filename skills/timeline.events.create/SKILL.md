@@ -7,14 +7,15 @@ description: Write an event to a project's timeline and confirm it actually reac
 
 **Credential:** that project's key.
 
-> **Where to run this:** anywhere. Replace `$PACK` with this pack's root — two levels above this
-> skill's base directory (shown as "Base directory for this skill" when the skill loads). The runner
+> **Where to run this:** anywhere. Run the command below exactly as written, replacing `<base directory>` with
+> this skill's base directory (shown as "Base directory for this skill" when the skill loads). `run.mjs`
+> finds the pack itself, whatever the base directory is, so there is nothing to locate or count. The runner
 > uses the pack's own pinned toolchain and its own configuration and credentials, so the project you
 > are working in is never touched and nothing is fetched from the network.
 
 
 ```
-node "$PACK/scripts/run-skill.mjs" timeline.events.create --projectId TLPT-2026-001 --event '{"name":"Scoping complete","group":"governance","type":"milestone","parents":["EVT-004"]}'
+node "<base directory>/run.mjs" timeline.events.create --projectId TLPT-2026-001 --event '{"name":"Scoping complete","group":"governance","type":"milestone","parents":["EVT-004"]}'
 ```
 
 ## Required fields
@@ -41,10 +42,10 @@ the user, then re-run with their answer:
 
 ```
 # link to the suggested event, or to another one the user names
-node "$PACK/scripts/run-skill.mjs" timeline.events.create --projectId TLPT-2026-001 --event '{"name":"Review done","group":"governance","type":"milestone","parents":["EVT-004"]}'
+node "<base directory>/run.mjs" timeline.events.create --projectId TLPT-2026-001 --event '{"name":"Review done","group":"governance","type":"milestone","parents":["EVT-004"]}'
 
 # deliberately no parent
-node "$PACK/scripts/run-skill.mjs" timeline.events.create --projectId TLPT-2026-001 --event '{"name":"Review done","group":"governance","type":"milestone","parents":[]}'
+node "<base directory>/run.mjs" timeline.events.create --projectId TLPT-2026-001 --event '{"name":"Review done","group":"governance","type":"milestone","parents":[]}'
 ```
 
 If the user has already said what it follows, include `parents` at once. Explicit parents are sent
@@ -67,7 +68,7 @@ This skill waits for it.
 An unresolved result carries an `ingestId`. Look it up again - this never writes a second time:
 
 ```
-node "$PACK/scripts/run-skill.mjs" timeline.events.create --projectId TLPT-2026-001 --recheck <ingestId>
+node "<base directory>/run.mjs" timeline.events.create --projectId TLPT-2026-001 --recheck <ingestId>
 ```
 
 It reports processed, failed or still unresolved exactly as a fresh write does. An id the backend does

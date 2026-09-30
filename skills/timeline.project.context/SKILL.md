@@ -7,14 +7,15 @@ description: One orienting read of a project - what it is, who acts on it, where
 
 **Credential:** that project's key.
 
-> **Where to run this:** anywhere. Replace `$PACK` with this pack's root — two levels above this
-> skill's base directory (shown as "Base directory for this skill" when the skill loads). The runner
+> **Where to run this:** anywhere. Run the command below exactly as written, replacing `<base directory>` with
+> this skill's base directory (shown as "Base directory for this skill" when the skill loads). `run.mjs`
+> finds the pack itself, whatever the base directory is, so there is nothing to locate or count. The runner
 > uses the pack's own pinned toolchain and its own configuration and credentials, so the project you
 > are working in is never touched and nothing is fetched from the network.
 
 
 ```
-node "$PACK/scripts/run-skill.mjs" timeline.project.context --projectId TLPT-2026-001
+node "<base directory>/run.mjs" timeline.project.context --projectId TLPT-2026-001
 ```
 
 Returns the project's identity and workflow type, its active members, its current phase, and its most

@@ -7,8 +7,9 @@ description: Obtain the credentials the other timeline skills need, by taking th
 
 **Credential:** none to begin with — this is the skill that obtains the rest.
 
-> **Where to run this:** anywhere. Replace `$PACK` with this pack's root — two levels above this
-> skill's base directory (shown as "Base directory for this skill" when the skill loads). The runner
+> **Where to run this:** anywhere. Run the command below exactly as written, replacing `<base directory>` with
+> this skill's base directory (shown as "Base directory for this skill" when the skill loads). `run.mjs`
+> finds the pack itself, whatever the base directory is, so there is nothing to locate or count. The runner
 > uses the pack's own pinned toolchain and its own configuration and credentials, so the project you
 > are working in is never touched and nothing is fetched from the network.
 
@@ -19,7 +20,7 @@ right screen in the user's browser and waits for the result on a listener runnin
 ## Authorize the agent
 
 ```
-node "$PACK/scripts/run-skill.mjs" timeline.authenticate
+node "<base directory>/run.mjs" timeline.authenticate
 ```
 
 Opens the authorization screen. Once the user approves, the external tool token is stored. It acts as that
@@ -31,7 +32,7 @@ If a usable external tool token is already held, this reports who the agent acts
 ## Confirm a key for a project
 
 ```
-node "$PACK/scripts/run-skill.mjs" timeline.authenticate --projectId TLPT-2026-001
+node "<base directory>/run.mjs" timeline.authenticate --projectId TLPT-2026-001
 ```
 
 Opens a screen naming that project and the key's lifetime. Every project key is confirmed this way —
