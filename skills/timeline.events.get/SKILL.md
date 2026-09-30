@@ -22,4 +22,4 @@ project has no such entry.
 
 ## When there is no usable key
 
-The skill stops and says a confirmed key is needed. Run `timeline.authenticate --projectId <id>`.
+The skill stops and says a confirmed key is needed. Run `timeline.authenticate --projectId <id>`. A key reaches exactly one project, so each project needs its own.

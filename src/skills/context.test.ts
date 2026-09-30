@@ -114,4 +114,24 @@ describe('timeline.projects.permissions', () => {
     expect(report.canWrite).toBe(false);
     expect(report.summary).toContain('cannot be confirmed');
   });
+
+  it('takes the most recent occurred events newest first even when they arrive in workflow order', async () => {
+    const client = timelineClient();
+    const at = (entryId: string, timestamp: string) => ({ entryId, name: entryId, timestamp, occurred: true });
+    vi.mocked(client.project).mockResolvedValue({
+      project: { projectId: 'TLPT-2026-001', codename: 'NORTH STAR', phase: 'x' },
+      events: [
+        at('EVT-A', '2026-09-01T10:00:00Z'),
+        at('EVT-C', '2026-09-03T10:00:00Z'),
+        at('EVT-B', '2026-09-02T10:00:00Z'),
+        at('EVT-D', '2026-09-04T10:00:00Z'),
+      ],
+      workflowCompliant: true,
+      playbook: null,
+    } as never);
+
+    const context = await projectContext(client, 'TLPT-2026-001', 2);
+
+    expect(context.recentEvents.map((event) => event.entryId)).toEqual(['EVT-D', 'EVT-C']);
+  });
 });

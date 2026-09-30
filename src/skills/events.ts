@@ -1,7 +1,7 @@
 import type { EventFilters, IngestStatus, TimelineClient, TimelineEvent } from '../client';
-import { ProjectKeyRequiredError } from '../errors';
+import { InvalidRequestError, NotFoundError, ProjectKeyRequiredError } from '../errors';
 
-export type CreateOutcome = 'processed' | 'failed' | 'unresolved' | 'needs_parent_decision';
+export type CreateOutcome = 'processed' | 'failed' | 'unresolved' | 'needs_parent_decision' | 'not_found';
 
 export interface CreateEventResult {
   outcome: CreateOutcome;
@@ -35,10 +35,6 @@ export interface CreateEventOptions {
  * write failed, which is precisely the failure this pack exists to avoid.
  */
 export async function createEvent(options: CreateEventOptions): Promise<CreateEventResult> {
-  const budgetSeconds = options.budgetSeconds ?? 30;
-  const pollIntervalMs = options.pollIntervalMs ?? 500;
-  const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
-
   const named = options.event.parents;
   // Only an actual array is a decision; anything else (absent, null, a string) is still undecided.
   if (!Array.isArray(named)) return decideParent(options);
@@ -50,6 +46,50 @@ export async function createEvent(options: CreateEventOptions): Promise<CreateEv
     ? `Parents were the ones given: ${parents.join(', ')}.`
     : 'No parent was used, as chosen.';
   const receipt = await options.client.submitEvent(options.projectId, event);
+  return awaitOutcome(options, receipt.id, note, parents);
+}
+
+export interface RecheckEventOptions {
+  client: TimelineClient;
+  projectId: string;
+  /** The ingest record id an earlier unresolved write returned. */
+  ingestId: string;
+  budgetSeconds?: number;
+  pollIntervalMs?: number;
+  sleep?: (ms: number) => Promise<void>;
+}
+
+/**
+ * Reads the ingest status of an earlier write and reports it as a fresh write would be reported.
+ * Nothing is written: this never creates the event a second time.
+ */
+export async function recheckEvent(options: RecheckEventOptions): Promise<CreateEventResult> {
+  return awaitOutcome(
+    options,
+    options.ingestId,
+    'This is a re-check; nothing was written again.',
+    undefined,
+    true,
+  );
+}
+
+async function awaitOutcome(
+  options: {
+    client: TimelineClient;
+    projectId: string;
+    budgetSeconds?: number;
+    pollIntervalMs?: number;
+    sleep?: (ms: number) => Promise<void>;
+  },
+  ingestId: string,
+  note: string,
+  parents?: string[],
+  recheck = false,
+): Promise<CreateEventResult> {
+  const budgetSeconds = options.budgetSeconds ?? 30;
+  const pollIntervalMs = options.pollIntervalMs ?? 500;
+  const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const receipt = { id: ingestId };
   const deadline = Date.now() + budgetSeconds * 1000;
 
   // The write already happened - the 202 said so. A failure from here on is a failure to *learn*
@@ -63,6 +103,17 @@ export async function createEvent(options: CreateEventOptions): Promise<CreateEv
       last = await options.client.eventStatus(options.projectId, receipt.id);
     }
   } catch (error) {
+    // Only a re-check can name an id the backend does not know; a fresh write's record exists.
+    if (recheck && (error instanceof NotFoundError || error instanceof InvalidRequestError)) {
+      return {
+        outcome: 'not_found',
+        ingestId,
+        error: reasonFor(error),
+        summary:
+          `No such ingest record: ${ingestId} is not known to this project's stream. Check the id `
+          + 'against the ingestId an earlier write returned. Nothing was written.',
+      };
+    }
     return {
       outcome: 'unresolved',
       ingestId: receipt.id,

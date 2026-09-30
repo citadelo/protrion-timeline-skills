@@ -35,7 +35,10 @@ export async function projectContext(
     client.members(projectId),
   ]);
 
-  const occurred = timeline.events.filter((event) => event.occurred);
+  // The backend returns workflow order, not time order, so "most recent" needs an explicit sort.
+  const occurred = timeline.events
+    .filter((event) => event.occurred)
+    .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
   const planned = timeline.events.filter((event) => !event.occurred);
 
   return {

@@ -10,12 +10,14 @@ export class ProjectKeyRequiredError extends Error {
     readonly projectId: string,
     readonly reason: 'missing' | 'expired',
   ) {
+    const command = `timeline.authenticate --projectId ${projectId}`;
     super(
       reason === 'expired'
         ? `The key for ${projectId} has expired. Project keys are short-lived and every one is `
-          + 'confirmed by a person: run timeline.authenticate to be taken through confirming a fresh one.'
-        : `No confirmed key is held for ${projectId}. Run timeline.authenticate to be taken through `
-          + 'confirming one.',
+          + `confirmed by a person: run \`${command}\` to be taken through confirming a fresh one. `
+          + 'A key reaches exactly one project.'
+        : `No confirmed key is held for ${projectId}. Run \`${command}\` to be taken through `
+          + 'confirming one. A key reaches exactly one project.',
     );
     this.name = 'ProjectKeyRequiredError';
   }
@@ -46,6 +48,24 @@ export class RefusedError extends Error {
         + (detail ? ` ${detail}` : ''),
     );
     this.name = 'RefusedError';
+  }
+}
+
+/** The project, or the thing asked for in it, does not exist (404). The credential was accepted. */
+export class NotFoundError extends Error {
+  constructor(readonly attempting: string, detail?: string) {
+    super(`Nothing was found while ${attempting} (404).` + (detail ? ` ${detail}` : ''));
+    this.name = 'NotFoundError';
+  }
+}
+
+/** The backend rejected the request itself (400/422). The credential was fine; the request was not. */
+export class InvalidRequestError extends Error {
+  constructor(readonly status: number, readonly attempting: string, detail?: string) {
+    super(
+      `The request was invalid (${status}) while ${attempting}.` + (detail ? ` ${detail}` : ''),
+    );
+    this.name = 'InvalidRequestError';
   }
 }
 

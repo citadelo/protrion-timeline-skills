@@ -16,6 +16,15 @@ export function openBrowser(url: string): void {
       : process.platform === 'win32'
         ? ['rundll32', ['url.dll,FileProtocolHandler', url]]
         : ['xdg-open', [url]];
-  spawn(command, args, { stdio: 'ignore', detached: true }).unref();
+  const child = spawn(command, args, { stdio: 'ignore', detached: true });
+  // A missing launcher (no xdg-open, say) is reported asynchronously; unhandled, it would kill the
+  // process while the user still has the URL to open by hand. Keep waiting instead.
+  child.on('error', () => {
+    process.stderr.write(
+      `Could not open a browser automatically (${command} is unavailable). `
+        + `Open the URL printed above manually: ${url}\n`,
+    );
+  });
+  child.unref();
   process.stderr.write(`Opened ${url}\nApprove it there, then come back.\n`);
 }

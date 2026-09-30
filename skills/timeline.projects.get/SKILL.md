@@ -26,4 +26,4 @@ Events include planned steps the workflow expects but that have not happened; th
 ## When there is no usable key
 
 The skill stops and says a confirmed key is needed, naming the project. It does not obtain one — run
-`timeline.authenticate --projectId <id>` and let the user confirm.
+`timeline.authenticate --projectId <id>` and let the user confirm. A key reaches exactly one project.

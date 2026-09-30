@@ -142,10 +142,13 @@ node scripts/run-skill.mjs timeline.authenticate --projectId TLPT-2026-001
 | Refused: the backend failed or could not be reached | A server or network error while issuing. | Try again; check the backend if it persists. |
 | No external tool token / the external tool token was refused | Never authorized, or the token was revoked. | Authorize again with `timeline.authenticate`. |
 | No confirmed key / the key has expired | The project has no key, or its key ran out. | Confirm a key with `timeline.authenticate --projectId <id>`. |
+| Nothing was found (404) | The project, event or ingest record asked for does not exist (the key was accepted). | Check the id you passed; do not re-authenticate. |
+| The request was invalid (4xx) | The backend rejected the request itself, with its reason. | Fix the request (for an event: `name`, `group`, and `type` or `entryId`); do not re-authenticate. |
+| No such ingest record (`not_found`) | `--recheck` was given an id the backend does not know. | Use the `ingestId` an earlier write returned; nothing was written. |
 | The backend could not be reached | Network or backend down. Distinct from "nothing found". | Check `TIMELINE_API_URL` and that the backend runs. |
 | Event `PROCESSED` | The event is in the ledger. | Nothing. |
 | Event `FAILED` | The ledger rejected it; the recorded error is included. | Fix the event and create it again. |
-| Event unresolved, with its ingest id | Accepted, but its outcome could not be confirmed in time (or the key expired while checking). | Check it later with `timeline.events.get` - do not create it a second time. |
+| Event unresolved, with its ingest id | Accepted, but its outcome could not be confirmed in time (or the key expired while checking). | Re-check it with `timeline.events.create --projectId <id> --recheck <ingestId>` - do not create it a second time. |
 
 ## Two things that are absent on purpose
 

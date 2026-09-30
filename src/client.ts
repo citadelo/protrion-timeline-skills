@@ -3,6 +3,8 @@ import type { TimelineConfig } from './config';
 import {
   AuthorizationRequiredError,
   BackendUnavailableError,
+  InvalidRequestError,
+  NotFoundError,
   ProjectKeyRequiredError,
   RefusedError,
 } from './errors';
@@ -228,7 +230,11 @@ export class TimelineClient {
       if (response.status >= 500) {
         throw new BackendUnavailableError(attempting);
       }
-      throw new RefusedError(response.status, credential, attempting, await detail(response));
+      const problem = await detail(response);
+      if (response.status === 404) throw new NotFoundError(attempting, problem);
+      // 400/422 and any other unexpected 4xx (409): the credential was accepted, so this is not
+      // "refused" and must not steer the agent to re-authenticate.
+      throw new InvalidRequestError(response.status, attempting, problem);
     }
     return (await response.json()) as T;
   }

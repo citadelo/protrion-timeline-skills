@@ -35,7 +35,8 @@ node "$PACK/scripts/run-skill.mjs" timeline.authenticate --projectId TLPT-2026-0
 ```
 
 Opens a screen naming that project and the key's lifetime. Every project key is confirmed this way —
-the first one, and every replacement of an expired one. A key expires within two hours.
+the first one, and every replacement of an expired one. A key reaches exactly one project - confirm
+one per project. A key expires within two hours.
 
 ## What it reports
 

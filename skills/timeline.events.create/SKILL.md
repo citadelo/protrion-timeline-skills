@@ -17,6 +17,17 @@ description: Write an event to a project's timeline and confirm it actually reac
 node "$PACK/scripts/run-skill.mjs" timeline.events.create --projectId TLPT-2026-001 --event '{"name":"Scoping complete","group":"governance","type":"milestone","parents":["EVT-004"]}'
 ```
 
+## Required fields
+
+The event is a JSON object. The backend rejects it (`400`) unless it has:
+
+- `name` - non-blank.
+- `group` - non-blank (for example `governance`, `evidence`).
+- `type` **or** `entryId` - at least one of the two. `type` is a string (the event type name, for
+  example `milestone`); `entryId` is the id the event should be stored under.
+
+Plus `parents` (below), which this skill needs decided before it writes.
+
 ## Ask the user what the event follows
 
 The timeline graph draws its edges from each event's `parents`. **If you have not been told what the
@@ -30,10 +41,10 @@ the user, then re-run with their answer:
 
 ```
 # link to the suggested event, or to another one the user names
-node "$PACK/scripts/run-skill.mjs" timeline.events.create --projectId TLPT-2026-001 --event '{"name":"Review done","parents":["EVT-004"]}'
+node "$PACK/scripts/run-skill.mjs" timeline.events.create --projectId TLPT-2026-001 --event '{"name":"Review done","group":"governance","type":"milestone","parents":["EVT-004"]}'
 
 # deliberately no parent
-node "$PACK/scripts/run-skill.mjs" timeline.events.create --projectId TLPT-2026-001 --event '{"name":"Review done","parents":[]}'
+node "$PACK/scripts/run-skill.mjs" timeline.events.create --projectId TLPT-2026-001 --event '{"name":"Review done","group":"governance","type":"milestone","parents":[]}'
 ```
 
 If the user has already said what it follows, include `parents` at once. Explicit parents are sent
@@ -49,7 +60,20 @@ This skill waits for it.
 - **failed** — it was accepted and then rejected downstream, with the recorded error. **This is not
   success.** Never report the `202` as if the timeline were updated.
 - **unresolved** — it had not settled within the waiting budget. It may still land. Re-check the
-  ingest record rather than guessing either way.
+  ingest record rather than guessing either way (below).
+
+## Re-check an unresolved write
+
+An unresolved result carries an `ingestId`. Look it up again - this never writes a second time:
+
+```
+node "$PACK/scripts/run-skill.mjs" timeline.events.create --projectId TLPT-2026-001 --recheck <ingestId>
+```
+
+It reports processed, failed or still unresolved exactly as a fresh write does. An id the backend does
+not know (404) or rejects (400) is reported as outcome `not_found` ("No such ingest record"): check the
+id, it is not a pending write. `--recheck` cannot be combined with `--event`. `timeline.events.get`
+takes an entry id, not an ingest id, so it cannot be used for this.
 
 ## When there is no usable key
 

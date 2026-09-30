@@ -25,6 +25,9 @@ interface StoreFile {
   projectKeys?: Record<string, StoredProjectKey>;
 }
 
+const unreadableStore = (dir: string) =>
+  `credential store is unreadable; delete ${dir} and authorize again`;
+
 /**
  * Where the pack keeps what a human has granted it.
  *
@@ -226,13 +229,20 @@ export class CredentialStore {
   }
 
   private async read(): Promise<StoreFile> {
+    let raw: string;
     try {
-      return JSON.parse(await fs.readFile(this.file, 'utf-8')) as StoreFile;
+      raw = await fs.readFile(this.file, 'utf-8');
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return {};
       }
       throw error;
+    }
+    try {
+      return JSON.parse(raw) as StoreFile;
+    } catch {
+      // Never the parser's message: V8 quotes a slice of the file, and this file holds tokens.
+      throw new Error(unreadableStore(this.dir));
     }
   }
 

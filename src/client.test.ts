@@ -8,6 +8,8 @@ import { CredentialStore } from './credentials';
 import {
   AuthorizationRequiredError,
   BackendUnavailableError,
+  InvalidRequestError,
+  NotFoundError,
   ProjectKeyRequiredError,
   RefusedError,
 } from './errors';
@@ -86,7 +88,66 @@ describe('TimelineClient', () => {
     await givenProjectKey();
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ detail: 'Token expired' }, 401));
 
-    await expect(client(fetchImpl).events(PROJECT)).rejects.toThrow(/timeline\.authenticate/);
+    await expect(client(fetchImpl).events(PROJECT)).rejects.toThrow(
+      `timeline.authenticate --projectId ${PROJECT}`,
+    );
+  });
+
+  it('names the full authenticate command, and that a key reaches one project, when none is held', async () => {
+    const fetchImpl = vi.fn();
+
+    const failure = await client(fetchImpl).events(PROJECT).catch((error: unknown) => error);
+
+    expect((failure as Error).message).toContain(`timeline.authenticate --projectId ${PROJECT}`);
+    expect((failure as Error).message).toContain('exactly one project');
+  });
+
+  it('names the full authenticate command when the held key has expired', async () => {
+    await givenProjectKey(new Date(Date.now() - 1_000).toISOString());
+
+    const failure = await client(vi.fn()).events(PROJECT).catch((error: unknown) => error);
+
+    expect((failure as Error).message).toContain(`timeline.authenticate --projectId ${PROJECT}`);
+    expect((failure as Error).message).toContain('exactly one project');
+  });
+
+  it.each([
+    [404, NotFoundError, /Nothing was found.*\(404\).*No such event\./],
+    [400, InvalidRequestError, /request was invalid \(400\).*No such event\./],
+    [422, InvalidRequestError, /request was invalid \(422\).*No such event\./],
+    [409, InvalidRequestError, /request was invalid \(409\).*No such event\./],
+  ])('maps a %i on a read to a non-credential error carrying the detail', async (status, type, message) => {
+    await givenProjectKey();
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ detail: 'No such event.' }, status));
+
+    const failure = await client(fetchImpl).event(PROJECT, 'EVT-1').catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(type);
+    expect(failure).not.toBeInstanceOf(RefusedError);
+    expect((failure as Error).message).toMatch(message);
+    expect((failure as Error).message).not.toMatch(/refused|authenticate/);
+  });
+
+  it.each([
+    [404, NotFoundError],
+    [400, InvalidRequestError],
+    [422, InvalidRequestError],
+  ])('maps a %i on submitting an event without calling it a refused key', async (status, type) => {
+    await givenProjectKey();
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ detail: 'name must not be blank' }, status));
+
+    const failure = await client(fetchImpl).submitEvent(PROJECT, {}).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(type);
+    expect((failure as Error).message).toContain('name must not be blank');
+    expect((failure as Error).message).not.toMatch(/refused|authenticate/);
+  });
+
+  it('still reports 401 and 403 on a project key as refusals or re-confirmation', async () => {
+    await givenProjectKey();
+    const forbidden = vi.fn().mockResolvedValue(jsonResponse({ detail: 'No.' }, 403));
+
+    await expect(client(forbidden).events(PROJECT)).rejects.toBeInstanceOf(RefusedError);
   });
 
   it('maps a 401 on submitting an event to the same fresh-confirmation message', async () => {

@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openBrowser } from './browser';
 
-vi.mock('node:child_process', () => ({ spawn: vi.fn(() => ({ unref: vi.fn() })) }));
+vi.mock('node:child_process', () => ({ spawn: vi.fn(() => ({ unref: vi.fn(), on: vi.fn() })) }));
 
 const ORIGINAL_PLATFORM = process.platform;
 
@@ -57,5 +58,25 @@ describe('openBrowser', () => {
       [url],
       expect.objectContaining({ stdio: 'ignore', detached: true }),
     );
+  });
+
+  it('does not crash when the launcher is missing, and tells the user to open the URL', () => {
+    setPlatform('linux');
+    const url = 'http://127.0.0.1:54321/callback?state=xyz';
+    const emitter = new EventEmitter() as EventEmitter & { unref: () => void };
+    emitter.unref = vi.fn();
+    vi.mocked(spawn).mockReturnValueOnce(emitter as never);
+    const written = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    openBrowser(url);
+    // Without a listener, emitting 'error' throws - exactly what killed the process before.
+    expect(() =>
+      emitter.emit('error', Object.assign(new Error('spawn xdg-open ENOENT'), { code: 'ENOENT' })),
+    ).not.toThrow();
+
+    const output = written.mock.calls.map((call) => String(call[0])).join('');
+    written.mockRestore();
+    expect(output).toContain('Open the URL printed above manually');
+    expect(output).toContain(url);
   });
 });

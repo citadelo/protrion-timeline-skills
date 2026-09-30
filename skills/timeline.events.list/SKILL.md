@@ -17,7 +17,9 @@ description: List the events of one project, optionally narrowed by group, tags 
 node "$PACK/scripts/run-skill.mjs" timeline.events.list --projectId TLPT-2026-001 [--group evidence] [--tags kickoff,scoping] [--typeDetail phase:Threat\ Intelligence]
 ```
 
-Returns the project's merged events, newest first.
+Returns the project's merged events as the backend orders them: the workflow's steps in workflow
+order, then events outside the workflow. This is not sorted by time; use each event's `timestamp` if
+recency matters.
 
 Filters are the dimensions the ledger supports: `group`, `tags` and `typeDetail` (each `key:value`).
 There is no full-text search and no other dimension — this skill with filters is the search.
@@ -27,4 +29,4 @@ Every event carries `occurred`. A planned step the workflow expects but that has
 
 ## When there is no usable key
 
-The skill stops and says a confirmed key is needed. Run `timeline.authenticate --projectId <id>`.
+The skill stops and says a confirmed key is needed. Run `timeline.authenticate --projectId <id>`. A key reaches exactly one project, so each project needs its own.

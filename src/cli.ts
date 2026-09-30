@@ -8,13 +8,15 @@ import {
   BackendUnavailableError,
   DeclinedError,
   DeliveryRefusedError,
+  InvalidRequestError,
+  NotFoundError,
   ProjectKeyRequiredError,
   RefusedError,
   TimedOutError,
 } from './errors';
 import { authenticate } from './skills/authenticate';
 import { projectContext } from './skills/context';
-import { createEvent, getEvent, listEvents } from './skills/events';
+import { createEvent, getEvent, listEvents, recheckEvent } from './skills/events';
 import { getProject, listProjects, projectMembers, projectPermissions } from './skills/projects';
 
 /**
@@ -87,11 +89,22 @@ async function main(argv: string[]): Promise<void> {
       );
     case 'timeline.events.create':
     {
-      const result = await createEvent({
-        client,
-        projectId: required(args, 'projectId'),
-        event: JSON.parse(required(args, 'event')) as Record<string, unknown>,
-      });
+      // --recheck reads the status of an earlier, unresolved write; it never writes again.
+      if (args.recheck !== undefined && args.event !== undefined) {
+        throw new Error('--recheck cannot be combined with --event: a re-check writes nothing.');
+      }
+      if (args.recheck === 'true') throw new Error('--recheck needs the ingestId of the earlier write.');
+      const result = args.recheck
+        ? await recheckEvent({
+            client,
+            projectId: required(args, 'projectId'),
+            ingestId: required(args, 'recheck'),
+          })
+        : await createEvent({
+            client,
+            projectId: required(args, 'projectId'),
+            event: JSON.parse(required(args, 'event')) as Record<string, unknown>,
+          });
       report(result);
       // Nothing was written: a distinct non-zero code so it cannot be read as a successful write.
       if (result.outcome === 'needs_parent_decision') process.exitCode = 2;
@@ -166,6 +179,8 @@ main(process.argv.slice(2)).catch((error: unknown) => {
     error instanceof ProjectKeyRequiredError
     || error instanceof AuthorizationRequiredError
     || error instanceof RefusedError
+    || error instanceof NotFoundError
+    || error instanceof InvalidRequestError
     || error instanceof BackendUnavailableError
     || error instanceof DeclinedError
     || error instanceof DeliveryRefusedError

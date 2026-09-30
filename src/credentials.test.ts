@@ -88,6 +88,21 @@ describe('CredentialStore', () => {
     expect((await store.readProjectKey('TLPT-2026-001'))?.key).toBe('raw-key-for-TLPT-2026-001');
   });
 
+  it('reports an unreadable store with a fixed message that holds nothing from the file', async () => {
+    const secret = 'SECRET-TOKEN-VALUE-1234567890';
+    await fs.writeFile(path.join(dir, 'credentials.json'), `{"externalToolToken":{"token":"${secret}" oops`);
+
+    const failure = await store.readExternalToolToken().catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toBe(
+      `credential store is unreadable; delete ${dir} and authorize again`,
+    );
+    expect((failure as Error).message).not.toContain(secret);
+    expect(String((failure as Error).stack)).not.toContain(secret);
+    expect((failure as Error).cause).toBeUndefined();
+  });
+
   it('reads as empty before anything has been granted', async () => {
     expect(await store.readExternalToolToken()).toBeUndefined();
     expect(await store.projectsWithKeys()).toEqual([]);

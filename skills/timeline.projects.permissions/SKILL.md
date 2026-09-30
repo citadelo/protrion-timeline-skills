@@ -27,7 +27,8 @@ with side effects.
 
 - **A member, with permissions** — `rwx`, `r`, and so on. `canWrite` says plainly whether writes are
   possible.
-- **Read-only** — a key can be confirmed, but writes will fail. Worth telling the user before they
-  confirm one.
+- **Read-only** — no key can be confirmed: the project-key screen refuses without write access, so the
+  project can be neither read nor written through this pack. Tell the user; do not ask them to confirm
+  one.
 - **Not a member** — no key for this project can exist. Do not ask the user to confirm one.
 - **No such project** — `404`.

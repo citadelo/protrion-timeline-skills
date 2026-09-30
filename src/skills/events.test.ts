@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TimelineClient } from '../client';
-import { BackendUnavailableError, ProjectKeyRequiredError } from '../errors';
-import { createEvent } from './events';
+import { BackendUnavailableError, InvalidRequestError, NotFoundError, ProjectKeyRequiredError } from '../errors';
+import { createEvent, recheckEvent } from './events';
 
 function clientWith(
   statuses: { status: string; entryId?: string; lastError?: string }[],
@@ -226,5 +226,72 @@ describe('timeline.events.create', () => {
     expect(result.outcome).toBe('unresolved');
     expect(result.ingestId).toBe('ingest-1');
     expect(result.summary).toContain('could not be reached');
+  });
+});
+
+describe('recheckEvent', () => {
+  const recheck = (client: TimelineClient) =>
+    recheckEvent({
+      client,
+      projectId: 'TLPT-2026-001',
+      ingestId: 'ingest-1',
+      budgetSeconds: 0,
+      sleep: noSleep,
+    });
+
+  it('reports a processed write with its entry id, without writing again', async () => {
+    const client = clientWith([{ status: 'PROCESSED', entryId: 'EVT-77' }]);
+
+    const result = await recheck(client);
+
+    expect(result).toMatchObject({ outcome: 'processed', entryId: 'EVT-77', ingestId: 'ingest-1' });
+    expect(client.eventStatus).toHaveBeenCalledWith('TLPT-2026-001', 'ingest-1');
+    expect(client.submitEvent).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed write with the recorded error', async () => {
+    const client = clientWith([{ status: 'FAILED', lastError: 'ledger said no' }]);
+
+    const result = await recheck(client);
+
+    expect(result.outcome).toBe('failed');
+    expect(result.error).toBe('ledger said no');
+    expect(client.submitEvent).not.toHaveBeenCalled();
+  });
+
+  it('reports a write still pending as unresolved, keeping the ingest id', async () => {
+    const client = clientWith([{ status: 'PENDING' }]);
+
+    const result = await recheck(client);
+
+    expect(result).toMatchObject({ outcome: 'unresolved', ingestId: 'ingest-1' });
+    expect(client.submitEvent).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['404', new NotFoundError('checking whether an event reached the ledger')],
+    ['400', new InvalidRequestError(400, 'checking whether an event reached the ledger')],
+  ])('reports an ingest id the backend answers %s for as no such record', async (_status, error) => {
+    const client = clientWith([{ status: 'PENDING' }]);
+    vi.mocked(client.eventStatus).mockReset().mockRejectedValue(error);
+
+    const result = await recheck(client);
+
+    expect(result.outcome).toBe('not_found');
+    expect(result.summary).toContain('No such ingest record');
+    expect(result.summary).not.toContain('may still land');
+    expect(client.submitEvent).not.toHaveBeenCalled();
+  });
+
+  it.each(['missing', 'expired'] as const)('keeps a %s key during a re-check unresolved', async (reason) => {
+    const client = clientWith([{ status: 'PENDING' }]);
+    vi.mocked(client.eventStatus)
+      .mockReset()
+      .mockRejectedValue(new ProjectKeyRequiredError('TLPT-2026-001', reason));
+
+    const result = await recheck(client);
+
+    expect(result.outcome).toBe('unresolved');
+    expect(result.summary).toContain('timeline.authenticate --projectId TLPT-2026-001');
   });
 });
