@@ -18,7 +18,7 @@ function browserThatDelivers(params: Record<string, string>) {
     const redirectUri = new URL(opened.searchParams.get('redirect_uri') as string);
     redirectUri.searchParams.set('state', opened.searchParams.get('state') as string);
     Object.entries(params).forEach(([key, value]) => redirectUri.searchParams.set(key, value));
-    await fetch(redirectUri.toString());
+    await fetch(redirectUri.toString(), { redirect: 'manual' });
   };
 }
 

@@ -13,7 +13,7 @@ function browserThatDelivers(params: Record<string, string>) {
     const redirectUri = new URL(opened.searchParams.get('redirect_uri') as string);
     redirectUri.searchParams.set('state', opened.searchParams.get('state') as string);
     Object.entries(params).forEach(([key, value]) => redirectUri.searchParams.set(key, value));
-    await fetch(redirectUri.toString());
+    await fetch(redirectUri.toString(), { redirect: 'manual' });
   };
 }
 
@@ -28,8 +28,11 @@ function browserThatCapturesAnswer(params: Record<string, string>, answers: Resp
   };
 }
 
+// Deliberately a closed port: the listener redirects here, and no test may depend on it being reachable.
+const APP_URL = 'http://127.0.0.1:9';
+
 const options = (openBrowser: (url: string) => void | Promise<void>) => ({
-  appUrl: 'http://localhost:4002',
+  appUrl: APP_URL,
   screenPath: 'agent/authorize',
   query: {},
   what: 'Authorizing this agent',
@@ -114,7 +117,7 @@ describe('awaitBrowserDelivery', () => {
       const answer = answers[0] as Response;
       expect(answer.status).toBe(303);
       const location = new URL(answer.headers.get('location') as string);
-      expect(location.origin + location.pathname).toBe('http://localhost:4002/agent/done');
+      expect(location.origin + location.pathname).toBe(`${APP_URL}/agent/done`);
       expect(location.search).toBe(`?${expectedQuery}`);
       expect(answer.headers.get('cache-control')).toBe('no-store');
       expect(answer.headers.get('referrer-policy')).toBe('no-referrer');
