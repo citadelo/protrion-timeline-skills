@@ -1,0 +1,20 @@
+{
+  "name": "protrion-timeline-skills",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "install-skills": "node scripts/install-skills.mjs",
+    "uninstall-skills": "node scripts/uninstall-skills.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "dotenv": "^17.4.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.9"
+  }
+}
