@@ -48,8 +48,8 @@ The install links, never copies: `git pull` here updates every installed skill, 
 `npm run uninstall-skills` removes exactly those links. Running the install twice changes nothing and
 says so. After a `git pull` that changes `package-lock.json`, run `npm ci` again.
 
-The skills work from any project on this machine. Each one runs through `scripts/run-skill.mjs`,
-which resolves this pack from its own location and uses the toolchain pinned here rather than
+The skills work from any project on this machine. Each one runs through its own `run.mjs` launcher (which hands over to `scripts/run-skill.mjs`),
+which resolves the pack from its real location (so the install symlink does not matter) and uses the toolchain pinned here rather than
 whatever `npx` would fetch — so nothing is downloaded at invocation time and the version never
 drifts. `.env` is read from here regardless of where the agent is standing, and credentials always
 land in this pack's `.credentials/`, never in the project being worked on. A skill run before
@@ -124,8 +124,8 @@ Every skill can also be run directly, which is handy for checking an installatio
 shows the exact command, for example:
 
 ```
-node scripts/run-skill.mjs timeline.projects.list
-node scripts/run-skill.mjs timeline.authenticate --projectId TLPT-2026-001
+node skills/timeline.projects.list/run.mjs timeline.projects.list
+node skills/timeline.authenticate/run.mjs timeline.authenticate --projectId TLPT-2026-001
 ```
 
 ## What a result means

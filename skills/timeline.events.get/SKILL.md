@@ -7,14 +7,15 @@ description: Read one event of a project by its entry id. Use when a specific en
 
 **Credential:** that project's key.
 
-> **Where to run this:** anywhere. Replace `$PACK` with this pack's root — two levels above this
-> skill's base directory (shown as "Base directory for this skill" when the skill loads). The runner
+> **Where to run this:** anywhere. Run the command below exactly as written, replacing `<base directory>` with
+> this skill's base directory (shown as "Base directory for this skill" when the skill loads). `run.mjs`
+> finds the pack itself, whatever the base directory is, so there is nothing to locate or count. The runner
 > uses the pack's own pinned toolchain and its own configuration and credentials, so the project you
 > are working in is never touched and nothing is fetched from the network.
 
 
 ```
-node "$PACK/scripts/run-skill.mjs" timeline.events.get --projectId TLPT-2026-001 --entryId EVT-005
+node "<base directory>/run.mjs" timeline.events.get --projectId TLPT-2026-001 --entryId EVT-005
 ```
 
 Returns the event with that entry id within the project the held key is bound to, or `404` when the
