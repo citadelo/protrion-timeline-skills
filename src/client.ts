@@ -2,11 +2,13 @@ import { CredentialStore } from './credentials';
 import type { TimelineConfig } from './config';
 import {
   AuthorizationRequiredError,
+  BackendTimedOutError,
   BackendUnavailableError,
   InvalidRequestError,
   NotFoundError,
   ProjectKeyRequiredError,
   RefusedError,
+  TooLargeToVerifyError,
 } from './errors';
 
 export interface ProjectSummary {
@@ -87,6 +89,74 @@ export interface IngestStatus {
   lastError: string | null;
 }
 
+export type VerificationVerdict = 'VALID' | 'INVALID' | 'INDETERMINATE';
+export type CheckStatus = 'PASS' | 'FAIL' | 'WARN' | 'SKIPPED';
+
+export interface IngestVerificationCheck {
+  code: string;
+  status: CheckStatus;
+  message: string;
+}
+
+export interface IngestVerificationChainCheck extends IngestVerificationCheck {
+  entryIds: string[];
+}
+
+export interface IngestVerificationEntry {
+  entryId: string;
+  verdict: VerificationVerdict;
+  parents: string[];
+  creationTime: string | null;
+  timestampTime: string | null;
+  failedChecks: IngestVerificationCheck[];
+}
+
+export interface IngestProjectVerification {
+  projectId: string;
+  level: string;
+  eventScope: string;
+  verdict: VerificationVerdict;
+  verifiedAt: string;
+  coverage: {
+    eventIntegrity: boolean;
+    parentPresence: boolean;
+    parentIntegrity: boolean;
+    parentBinding: string;
+    leafDeletionDetection: string;
+    note: string;
+  };
+  summary: { total: number; valid: number; invalid: number; indeterminate: number; edges: number };
+  chainChecks: IngestVerificationChainCheck[];
+  entries: IngestVerificationEntry[];
+}
+
+export interface IngestEventVerification {
+  projectId: string;
+  entryId: string;
+  scope: string;
+  verdict: VerificationVerdict;
+  verifiedAt: string;
+  signature?: {
+    profile: string | null;
+    signingTime: string | null;
+    timestampTime: string | null;
+    proofTime: string | null;
+    signer: {
+      subject: string;
+      issuer: string;
+      serialNumber: string;
+      sha256Fingerprint: string;
+    } | null;
+  };
+  checks: IngestVerificationCheck[];
+}
+
+export interface ChainVerificationOptions {
+  level?: string;
+  eventScope?: string;
+  includeIndexConsistency?: boolean;
+}
+
 /**
  * The pack's one way of talking to the backend.
  *
@@ -151,6 +221,43 @@ export class TimelineClient {
     );
   }
 
+  // --- verification: a verdict is a result, so only failing to verify is an error ----------------
+
+  async verifyProjectChain(
+    projectId: string,
+    options: ChainVerificationOptions = {},
+  ): Promise<IngestProjectVerification> {
+    const params = new URLSearchParams();
+    if (options.level) params.set('level', options.level);
+    if (options.eventScope) params.set('eventScope', options.eventScope);
+    if (options.includeIndexConsistency !== undefined) {
+      params.set('includeIndexConsistency', String(options.includeIndexConsistency));
+    }
+    return this.withProjectKey(
+      projectId,
+      `/api/ingest/project/verification${suffix(params)}`,
+      `verifying the chain of ${projectId}`,
+      {},
+      true,
+    );
+  }
+
+  async verifyProjectEvent(
+    projectId: string,
+    entryId: string,
+    scope?: string,
+  ): Promise<IngestEventVerification> {
+    const params = new URLSearchParams();
+    if (scope) params.set('scope', scope);
+    return this.withProjectKey(
+      projectId,
+      `/api/ingest/project/events/${encodeURIComponent(entryId)}/verification${suffix(params)}`,
+      `verifying ${entryId} in ${projectId}`,
+      {},
+      true,
+    );
+  }
+
   // --- writing ---------------------------------------------------------------------------------
 
   async submitEvent(projectId: string, event: Record<string, unknown>): Promise<IngestReceipt> {
@@ -182,6 +289,7 @@ export class TimelineClient {
     path: string,
     attempting: string,
     init: RequestInit = {},
+    verification = false,
   ): Promise<T> {
     // Refused before a request is issued: a key the user has not confirmed, or one that has run out,
     // is not something the pack may work around.
@@ -192,7 +300,7 @@ export class TimelineClient {
       const expired = await this.credentials.hasProjectKey(projectId);
       throw new ProjectKeyRequiredError(projectId, expired ? 'expired' : 'missing');
     }
-    return this.send<T>(path, key.key, 'project key', attempting, init, projectId);
+    return this.send<T>(path, key.key, 'project key', attempting, init, projectId, verification);
   }
 
   private async send<T>(
@@ -202,6 +310,7 @@ export class TimelineClient {
     attempting: string,
     init: RequestInit = {},
     projectId?: string,
+    verification = false,
   ): Promise<T> {
     let response: Response;
     try {
@@ -227,6 +336,14 @@ export class TimelineClient {
       throw new RefusedError(response.status, credential, attempting, await detail(response));
     }
     if (!response.ok) {
+      // 422 and 504 only mean something specific on a verification; everywhere else they keep their
+      // existing mapping.
+      if (verification && response.status === 422) {
+        throw new TooLargeToVerifyError(attempting, await detail(response));
+      }
+      if (verification && response.status === 504) {
+        throw new BackendTimedOutError(attempting, await detail(response));
+      }
       if (response.status >= 500) {
         throw new BackendUnavailableError(attempting);
       }
@@ -238,6 +355,11 @@ export class TimelineClient {
     }
     return (await response.json()) as T;
   }
+}
+
+function suffix(params: URLSearchParams): string {
+  const rendered = params.toString();
+  return rendered ? `?${rendered}` : '';
 }
 
 function query(filters: EventFilters): string {

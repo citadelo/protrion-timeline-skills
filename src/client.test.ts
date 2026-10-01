@@ -7,11 +7,13 @@ import { readConfig } from './config';
 import { CredentialStore } from './credentials';
 import {
   AuthorizationRequiredError,
+  BackendTimedOutError,
   BackendUnavailableError,
   InvalidRequestError,
   NotFoundError,
   ProjectKeyRequiredError,
   RefusedError,
+  TooLargeToVerifyError,
 } from './errors';
 
 const PROJECT = 'TLPT-2026-001';
@@ -216,6 +218,122 @@ describe('TimelineClient', () => {
     expect(url).toContain('group=evidence');
     expect(url).toContain('tags=kickoff');
     expect(url).toContain('typeDetail=phase%3AThreat+Intelligence');
+  });
+
+  describe('verification', () => {
+    const urlOf = (fetchImpl: ReturnType<typeof vi.fn>) => fetchImpl.mock.calls[0]![0] as string;
+
+    it('sends no query parameter when the caller chose none', async () => {
+      await givenProjectKey();
+      const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({}));
+
+      await client(fetchImpl).verifyProjectChain(PROJECT);
+
+      expect(urlOf(fetchImpl)).toBe('http://localhost:8080/api/ingest/project/verification');
+      const [, init] = fetchImpl.mock.calls[0]!;
+      expect((init.headers as Record<string, string>).Authorization).toBe('Bearer raw-project-key');
+    });
+
+    it('sends exactly the chain parameters the caller gave', async () => {
+      await givenProjectKey();
+      const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({}));
+
+      await client(fetchImpl).verifyProjectChain(PROJECT, {
+        level: 'BOUND_LINKS',
+        eventScope: 'SIGNATURE',
+        includeIndexConsistency: false,
+      });
+
+      const url = new URL(urlOf(fetchImpl));
+      expect(url.pathname).toBe('/api/ingest/project/verification');
+      expect(url.searchParams.get('level')).toBe('BOUND_LINKS');
+      expect(url.searchParams.get('eventScope')).toBe('SIGNATURE');
+      expect(url.searchParams.get('includeIndexConsistency')).toBe('false');
+    });
+
+    it('sends only the parameter given for a partial choice', async () => {
+      await givenProjectKey();
+      const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({}));
+
+      await client(fetchImpl).verifyProjectChain(PROJECT, { level: 'EVENTS' });
+
+      expect(urlOf(fetchImpl)).toBe('http://localhost:8080/api/ingest/project/verification?level=EVENTS');
+    });
+
+    it('verifies one event, with the scope only when given', async () => {
+      await givenProjectKey();
+      const plain = vi.fn().mockResolvedValue(jsonResponse({}));
+      const scoped = vi.fn().mockResolvedValue(jsonResponse({}));
+
+      await client(plain).verifyProjectEvent(PROJECT, 'EVT 1');
+      await client(scoped).verifyProjectEvent(PROJECT, 'EVT-1', 'SIGNATURE_WITH_REVOCATION');
+
+      expect(urlOf(plain)).toBe('http://localhost:8080/api/ingest/project/events/EVT%201/verification');
+      expect(urlOf(scoped)).toBe(
+        'http://localhost:8080/api/ingest/project/events/EVT-1/verification?scope=SIGNATURE_WITH_REVOCATION',
+      );
+    });
+
+    it('refuses without a held key, before issuing a request', async () => {
+      const fetchImpl = vi.fn();
+
+      await expect(client(fetchImpl).verifyProjectChain('TLPT-2026-999')).rejects.toBeInstanceOf(
+        ProjectKeyRequiredError,
+      );
+      await expect(client(fetchImpl).verifyProjectEvent('TLPT-2026-999', 'E')).rejects.toBeInstanceOf(
+        ProjectKeyRequiredError,
+      );
+      expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [404, NotFoundError],
+      [400, InvalidRequestError],
+      [422, TooLargeToVerifyError],
+      [502, BackendUnavailableError],
+      [504, BackendTimedOutError],
+      [503, BackendUnavailableError],
+    ])('maps a %i on either verification to its own cause', async (status, type) => {
+      await givenProjectKey();
+      const respond = () => vi.fn().mockResolvedValue(jsonResponse({ detail: 'Because.' }, status));
+
+      const chain = await client(respond()).verifyProjectChain(PROJECT).catch((e: unknown) => e);
+      const event = await client(respond()).verifyProjectEvent(PROJECT, 'E').catch((e: unknown) => e);
+
+      expect(chain).toBeInstanceOf(type);
+      expect(event).toBeInstanceOf(type);
+    });
+
+    it('keeps 504 distinct from an unavailable backend and 422 from an invalid request', async () => {
+      await givenProjectKey();
+      const timeout = await client(vi.fn().mockResolvedValue(jsonResponse({}, 504)))
+        .verifyProjectChain(PROJECT).catch((e: unknown) => e);
+      const large = await client(vi.fn().mockResolvedValue(jsonResponse({}, 422)))
+        .verifyProjectChain(PROJECT).catch((e: unknown) => e);
+
+      expect(timeout).not.toBeInstanceOf(BackendUnavailableError);
+      expect(large).not.toBeInstanceOf(InvalidRequestError);
+      expect((large as Error).message).toContain('too large');
+      expect((timeout as Error).message).toContain('timed out');
+    });
+
+    it('leaves 504 on other reads as an unavailable backend', async () => {
+      await givenProjectKey();
+      const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({}, 504));
+
+      await expect(client(fetchImpl).events(PROJECT)).rejects.toBeInstanceOf(BackendUnavailableError);
+    });
+
+    it('still reports 401 and 403 on a verification as re-confirmation or refusal', async () => {
+      await givenProjectKey();
+
+      await expect(
+        client(vi.fn().mockResolvedValue(jsonResponse({}, 401))).verifyProjectChain(PROJECT),
+      ).rejects.toBeInstanceOf(ProjectKeyRequiredError);
+      await expect(
+        client(vi.fn().mockResolvedValue(jsonResponse({}, 403))).verifyProjectEvent(PROJECT, 'E'),
+      ).rejects.toBeInstanceOf(RefusedError);
+    });
   });
 
   it('never puts a credential in the message of a refusal', async () => {
