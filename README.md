@@ -82,10 +82,12 @@ change the URLs.
 | `timeline.projects.create` | external tool token, plus your confirmation on screen |
 | `timeline.projects.get` | that project's key |
 | `timeline.projects.members` | that project's key |
+| `timeline.projects.verify` | that project's key |
 | `timeline.project.context` | that project's key |
 | `timeline.events.create` | that project's key |
 | `timeline.events.get` | that project's key |
 | `timeline.events.list` | that project's key |
+| `timeline.events.verify` | that project's key |
 
 ## Using the skills
 
@@ -146,6 +148,10 @@ node skills/timeline.authenticate/run.mjs timeline.authenticate --projectId TLPT
 | The request was invalid (4xx) | The backend rejected the request itself, with its reason. | Fix the request (for an event: `name`, `group`, and `type` or `entryId`); do not re-authenticate. |
 | No such ingest record (`not_found`) | `--recheck` was given an id the backend does not know. | Use the `ingestId` an earlier write returned; nothing was written. |
 | The backend could not be reached | Network or backend down. Distinct from "nothing found". | Check `TIMELINE_API_URL` and that the backend runs. |
+| Verification verdict `VALID` | Nothing failed at the level and scope reported. | Read the coverage note: it says what that level could not detect. |
+| Verification verdict `INVALID` or `INDETERMINATE` | A finding, not a failure: the run succeeded. `INVALID` means a check failed; `INDETERMINATE` means one warned and none failed. | Report it, with the failed checks, to the user. Never write events in response. |
+| Too large to verify (422) | The project has more events than one verification can take. No verdict. | Not retryable as is; nothing was verified. |
+| Timed out (504) | The ledger or its signer took too long. No verdict. | Try again later. |
 | Event `PROCESSED` | The event is in the ledger. | Nothing. |
 | Event `FAILED` | The ledger rejected it; the recorded error is included. | Fix the event and create it again. |
 | Event unresolved, with its ingest id | Accepted, but its outcome could not be confirmed in time (or the key expired while checking). | Re-check it with `timeline.events.create --projectId <id> --recheck <ingestId>` - do not create it a second time. |
@@ -172,6 +178,16 @@ returns `needs_parent_decision` with `suggestedParent` (the latest *occurred* ev
 step, or `null`) and exits with code 2, so the agent asks the user whether to link to the suggestion,
 to another event, or to none, then re-runs with `"parents":["<id>"]` or `"parents":[]`. Explicit
 parents are sent unchanged; an empty list is a deliberate "no parent".
+
+## Verifying
+
+`timeline.projects.verify` and `timeline.events.verify` ask the ledger whether a project's chain, or one event,
+is unchanged. `--level` (`EVENTS`, `LINKS`, `BOUND_LINKS`), `--eventScope` (`INTEGRITY`, `SIGNATURE`) and `--scope`
+(`INTEGRITY`, `SIGNATURE`, `SIGNATURE_WITH_REVOCATION`) choose how deep; each `SKILL.md` says what each value
+checks. Nothing chosen means nothing sent, so the backend defaults apply: chain `LINKS` + `INTEGRITY`, event
+`INTEGRITY`, because signing on the ledger is not finished yet. The result names the level used and a coverage
+note saying what the check could not detect. A verdict of any kind exits `0`; only a failure to verify
+(not found, too large, unavailable, timed out) exits `1`.
 
 ## Credentials never appear in output
 

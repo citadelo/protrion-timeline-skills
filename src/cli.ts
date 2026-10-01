@@ -5,6 +5,7 @@ import { PACK_ROOT, readConfig } from './config';
 import { CredentialStore } from './credentials';
 import {
   AuthorizationRequiredError,
+  BackendTimedOutError,
   BackendUnavailableError,
   DeclinedError,
   DeliveryRefusedError,
@@ -13,10 +14,12 @@ import {
   ProjectKeyRequiredError,
   RefusedError,
   TimedOutError,
+  TooLargeToVerifyError,
 } from './errors';
 import { authenticate } from './skills/authenticate';
 import { projectContext } from './skills/context';
 import { createEvent, getEvent, listEvents, recheckEvent } from './skills/events';
+import { verifyEvent, verifyProject } from './skills/verification';
 import { getProject, listProjects, projectMembers, projectPermissions } from './skills/projects';
 
 /**
@@ -87,6 +90,24 @@ async function main(argv: string[]): Promise<void> {
       return report(
         await getEvent(client, required(args, 'projectId'), required(args, 'entryId')),
       );
+    case 'timeline.projects.verify':
+      // A verdict of any kind is a successful run; only failing to verify throws.
+      return report(
+        await verifyProject(client, required(args, 'projectId'), {
+          level: args.level,
+          eventScope: args.eventScope,
+          includeIndexConsistency: flag(args, 'includeIndexConsistency'),
+        }),
+      );
+    case 'timeline.events.verify':
+      return report(
+        await verifyEvent(
+          client,
+          required(args, 'projectId'),
+          required(args, 'entryId'),
+          args.scope,
+        ),
+      );
     case 'timeline.events.create':
     {
       // --recheck reads the status of an earlier, unresolved write; it never writes again.
@@ -113,8 +134,8 @@ async function main(argv: string[]): Promise<void> {
     default:
       throw new Error(
         `Unknown skill '${skill ?? ''}'. This pack ships: timeline.authenticate, `
-          + 'timeline.projects.{create,get,list,permissions,members}, '
-          + 'timeline.events.{create,get,list}, timeline.project.context.',
+          + 'timeline.projects.{create,get,list,permissions,members,verify}, '
+          + 'timeline.events.{create,get,list,verify}, timeline.project.context.',
       );
   }
 }
@@ -163,6 +184,13 @@ function required(args: Record<string, string | undefined>, key: string): string
   return value;
 }
 
+function flag(args: Record<string, string | undefined>, key: string): boolean | undefined {
+  const value = args[key];
+  if (value === undefined) return undefined;
+  if (value === 'true' || value === 'false') return value === 'true';
+  throw new Error(`--${key} must be true or false.`);
+}
+
 function number(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -182,6 +210,8 @@ main(process.argv.slice(2)).catch((error: unknown) => {
     || error instanceof NotFoundError
     || error instanceof InvalidRequestError
     || error instanceof BackendUnavailableError
+    || error instanceof BackendTimedOutError
+    || error instanceof TooLargeToVerifyError
     || error instanceof DeclinedError
     || error instanceof DeliveryRefusedError
     || error instanceof TimedOutError

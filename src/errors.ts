@@ -77,6 +77,24 @@ export class BackendUnavailableError extends Error {
   }
 }
 
+/** The project has too many events to verify in one request (422). The credential and request were fine. */
+export class TooLargeToVerifyError extends Error {
+  constructor(readonly attempting: string, detail?: string) {
+    super(
+      `The project is too large to verify (422) while ${attempting}.` + (detail ? ` ${detail}` : ''),
+    );
+    this.name = 'TooLargeToVerifyError';
+  }
+}
+
+/** The backend gave up waiting for the ledger or its signer (504). Distinct from it being down. */
+export class BackendTimedOutError extends Error {
+  constructor(readonly attempting: string, detail?: string) {
+    super(`The verification timed out (504) while ${attempting}.` + (detail ? ` ${detail}` : ''));
+    this.name = 'BackendTimedOutError';
+  }
+}
+
 /** The user declined on the confirmation screen, as opposed to never finishing it. */
 export class DeclinedError extends Error {
   constructor(what: string) {

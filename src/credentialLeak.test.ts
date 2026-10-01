@@ -6,6 +6,7 @@ import { TimelineClient } from './client';
 import { readConfig } from './config';
 import { CredentialStore } from './credentials';
 import { createEvent } from './skills/events';
+import { verifyEvent, verifyProject } from './skills/verification';
 import { listProjects, projectPermissions } from './skills/projects';
 
 const AGENT_TOKEN = 'SECRET-external-tool-token-a1b2c3';
@@ -109,6 +110,34 @@ describe('no skill output carries a credential', () => {
 
     expect(result.outcome).toBe('failed');
     expectNoSecrets(JSON.stringify(result));
+  });
+
+  it('keeps them out of a verification result and its failures', async () => {
+    const ok = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          projectId: PROJECT, level: 'LINKS', eventScope: 'INTEGRITY', verdict: 'VALID',
+          verifiedAt: 'now', coverage: { note: 'n' },
+          summary: { total: 0, valid: 0, invalid: 0, indeterminate: 0, edges: 0 },
+          chainChecks: [], entries: [],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    expectNoSecrets(JSON.stringify(await verifyProject(client(ok), PROJECT)));
+
+    for (const status of [401, 403, 404, 422, 502, 504]) {
+      const failing = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ detail: 'No.' }), {
+          status,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      await verifyEvent(client(failing), PROJECT, 'EVT-1').then(
+        () => expect.fail('expected a failure'),
+        (error: Error) => expectNoSecrets(`${error.message}\n${error.stack ?? ''}`),
+      );
+    }
   });
 
   it('fails when a credential is deliberately echoed, so this test is not vacuous', () => {
