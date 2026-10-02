@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 CITADELO s.r.o.
+// SPDX-License-Identifier: Apache-2.0
+
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

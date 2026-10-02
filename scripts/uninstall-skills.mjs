@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// SPDX-FileCopyrightText: 2026 CITADELO s.r.o.
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Removes exactly the links `install-skills` created: only symlinks, and only ones that point back
  * into this pack. Anything else wearing a skill's name is left alone.

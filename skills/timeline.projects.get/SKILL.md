@@ -2,6 +2,8 @@
 name: timeline.projects.get
 description: Read the full merged timeline of one project - info, actors, lanes, events, workflow compliance and playbook. Use when the whole picture is needed rather than a slice of it.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.projects.get
 

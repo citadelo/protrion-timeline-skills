@@ -2,6 +2,8 @@
 name: timeline.events.verify
 description: Verify one event of a project against the ledger - that it is unchanged since signing and, if asked, who signed it. Use when the user asks whether a specific entry can be trusted.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.events.verify
 

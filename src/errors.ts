@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 CITADELO s.r.o.
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * The failures a skill has to be able to tell apart, because the agent's next move differs for each.
  *

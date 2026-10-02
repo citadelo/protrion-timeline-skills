@@ -2,6 +2,8 @@
 name: timeline.projects.create
 description: Create a new timeline project and obtain its key, with the user confirming both in the app. Use when work needs a project that does not exist yet.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.projects.create
 

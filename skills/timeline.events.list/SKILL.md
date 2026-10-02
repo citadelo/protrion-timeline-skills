@@ -2,6 +2,8 @@
 name: timeline.events.list
 description: List the events of one project, optionally narrowed by group, tags or type details. Use to read what has happened, or to find events matching a dimension.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.events.list
 

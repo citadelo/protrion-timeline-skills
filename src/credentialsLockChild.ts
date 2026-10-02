@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 CITADELO s.r.o.
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Fixture for the cross-process locking test in credentials.test.ts - not a test itself.
  *

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 CITADELO s.r.o.
+// SPDX-License-Identifier: Apache-2.0
+
 import { createServer } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { DeclinedError, DeliveryRefusedError, TimedOutError } from './errors';

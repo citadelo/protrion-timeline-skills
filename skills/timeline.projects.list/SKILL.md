@@ -2,6 +2,8 @@
 name: timeline.projects.list
 description: List every project the timeline ledger holds. Use to discover which projects exist. Appearing in the list is not a claim that the agent may read or write one.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.projects.list
 

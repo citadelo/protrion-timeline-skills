@@ -2,6 +2,8 @@
 name: timeline.projects.members
 description: List the active actors of one project with their permissions. Use to see who may write before attempting a write, or to report who is involved.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.projects.members
 

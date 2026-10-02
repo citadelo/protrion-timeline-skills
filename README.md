@@ -229,3 +229,15 @@ npm test
 
 Both run offline - no backend, no browser, no credentials - and are what CI (`.gitlab-ci.yml`) runs on
 every push. Specs and tasks for changes live in the OpenSpec store `protrion-timeline`.
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Commits must be signed off (DCO, `git commit -s`); there is no
+CLA. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md), never in a public
+issue.
+
+## License
+
+Copyright 2026 CITADELO s.r.o. Licensed under the [Apache License 2.0](LICENSE); see also
+[NOTICE](NOTICE). "Protrion" and "Citadelo" are trademarks of CITADELO s.r.o. and are not covered by
+the license - see [TRADEMARK.md](TRADEMARK.md).

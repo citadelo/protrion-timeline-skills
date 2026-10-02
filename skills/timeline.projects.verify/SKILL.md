@@ -2,6 +2,8 @@
 name: timeline.projects.verify
 description: Verify the ledger chain of one project - that its events are unchanged and their parent links present and intact. Use when the user asks whether a project's timeline can be trusted or has been tampered with.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.projects.verify
 

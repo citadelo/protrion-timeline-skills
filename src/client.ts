@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 CITADELO s.r.o.
+// SPDX-License-Identifier: Apache-2.0
+
 import { CredentialStore } from './credentials';
 import type { TimelineConfig } from './config';
 import {

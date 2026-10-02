@@ -2,6 +2,8 @@
 name: timeline.project.context
 description: One orienting read of a project - what it is, who acts on it, where it stands, what happened recently. Use at the start of work on a project instead of several separate lookups.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.project.context
 

@@ -2,6 +2,8 @@
 name: timeline.events.get
 description: Read one event of a project by its entry id. Use when a specific entry is known and its detail is needed.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.events.get
 

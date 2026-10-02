@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 CITADELO s.r.o.
+// SPDX-License-Identifier: Apache-2.0
+
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PACK_ROOT, readConfig } from './config';

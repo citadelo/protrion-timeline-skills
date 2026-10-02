@@ -2,6 +2,8 @@
 name: timeline.events.create
 description: Write an event to a project's timeline and confirm it actually reached the ledger. Use to record work as it happens.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.events.create
 

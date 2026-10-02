@@ -2,6 +2,8 @@
 name: timeline.authenticate
 description: Obtain the credentials the other timeline skills need, by taking the user through the app. Use when another skill reports that authorization or a confirmed project key is needed, or before starting work on a project for the first time.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.authenticate
 

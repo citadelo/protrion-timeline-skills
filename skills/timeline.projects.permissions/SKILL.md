@@ -2,6 +2,8 @@
 name: timeline.projects.permissions
 description: Report what the approving user may do on one project, without attempting anything. Use before asking for a key, or before assuming a write will succeed.
 ---
+<!-- SPDX-FileCopyrightText: 2026 CITADELO s.r.o. -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # timeline.projects.permissions
 

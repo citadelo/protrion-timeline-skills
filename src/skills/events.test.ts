@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 CITADELO s.r.o.
+// SPDX-License-Identifier: Apache-2.0
+
 import { describe, expect, it, vi } from 'vitest';
 import type { TimelineClient } from '../client';
 import { BackendUnavailableError, InvalidRequestError, NotFoundError, ProjectKeyRequiredError } from '../errors';
